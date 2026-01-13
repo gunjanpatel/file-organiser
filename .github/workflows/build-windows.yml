@@ -13,6 +13,9 @@ jobs:
   build:
     name: Build file-organiser.exe
     runs-on: windows-latest
+    env:
+      # Use runner temporary dir for pip cache to make it cachable
+      PIP_CACHE_DIR: ${{ runner.temp }}\pip-cache
 
     steps:
       - name: Checkout
@@ -22,6 +25,16 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
+
+      - name: Cache pip cache and .venv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.PIP_CACHE_DIR }}
+            .venv
+          key: ${{ runner.os }}-pip-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install uv and setup project environment
         run: |
@@ -33,6 +46,26 @@ jobs:
       - name: Build one-file Windows exe with PyInstaller (via uv)
         run: |
           uv run pyinstaller --noconsole --onefile --windowed --name file-organiser --clean --noconfirm main.py
+        shell: pwsh
+
+      - name: Smoke-test built exe (start, wait, terminate)
+        run: |
+          $exe = 'dist\file-organiser.exe'
+          if (-Not (Test-Path $exe)) { throw "Exe not found: $exe" }
+          Write-Host "Launching $exe for a short smoke test"
+          $proc = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 6
+          try {
+            $running = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
+            if ($null -eq $running) { throw "Process did not remain running after start" }
+            Write-Host "Process started (pid $($proc.Id)); stopping process"
+            Stop-Process -Id $proc.Id -Force
+            Write-Host "Smoke test passed"
+          } catch {
+            # Attempt to kill process if it exists
+            try { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } catch {}
+            throw
+          }
         shell: pwsh
 
       - name: Upload built exe artifact
