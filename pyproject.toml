@@ -1,0 +1,14 @@
+[project]
+name = "file-organiser"
+version = "0.1.0"
+description = "Organise files into folders based on their file creation date."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pillow>=12.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.18.0",
+]

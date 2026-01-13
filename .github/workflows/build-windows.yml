@@ -1,0 +1,49 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ main ]
+    tags: ['v*']
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: Build file-organiser.exe
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install uv and setup project environment
+        run: |
+          python -m pip install --upgrade pip
+          pip install uv
+          uv sync
+        shell: pwsh
+
+      - name: Build one-file Windows exe with PyInstaller (via uv)
+        run: |
+          uv run pyinstaller --noconsole --onefile --windowed --name file-organiser --clean --noconfirm main.py
+        shell: pwsh
+
+      - name: Upload built exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: file-organiser-exe
+          path: |
+            dist/file-organiser.exe
+            dist/file-organiser/file-organiser.exe
+          retention-days: 7
+
+      - name: Show dist contents (debug)
+        if: ${{ always() }}
+        run: |
+          Write-Host "Contents of dist folder:"
+          Get-ChildItem -Recurse -Force dist | ForEach-Object { Write-Host $_.FullName }
+        shell: pwsh
