@@ -43,53 +43,54 @@ jobs:
             dist/file-organiser.exe
           retention-days: 7
 
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        id: create_release
-        uses: actions/create-release@v1
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
-          body: 'Automated build: file-organiser.exe'
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Ensure no existing release asset (delete if exists)
+      - name: Publish exe to GitHub Release (create if missing)
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
+          ASSET_PATH: dist/file-organiser.exe
           ASSET_NAME: file-organiser.exe
         run: |
-          Write-Host "Checking for existing release and asset named $env:ASSET_NAME for tag $env:TAG"
+          Write-Host "Publishing $env:ASSET_PATH to release for tag $env:TAG"
           $headers = @{ Authorization = "token $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json' }
-          # Get release by tag
-          $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:REPO/releases/tags/$env:TAG" -Headers $headers -Method Get
-          if ($null -eq $rel) { Write-Host 'No release found'; exit 0 }
-          $assets = $rel.assets
-          foreach ($a in $assets) {
-            if ($a.name -eq $env:ASSET_NAME) {
-              Write-Host "Found existing asset id=$($a.id) name=$($a.name). Deleting..."
-              $delUrl = "https://api.github.com/repos/$env:REPO/releases/assets/$($a.id)"
-              Invoke-RestMethod -Uri $delUrl -Headers $headers -Method Delete
-              Write-Host 'Deleted existing asset.'
+
+          # Try to get existing release by tag
+          $rel = $null
+          try {
+            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:REPO/releases/tags/$env:TAG" -Headers $headers -Method Get -ErrorAction Stop
+          } catch {
+            Write-Host "Release for tag $env:TAG not found; will create it"
+          }
+
+          if ($null -eq $rel) {
+            $body = @{ tag_name = $env:TAG; name = $env:TAG; body = 'Automated build: file-organiser.exe'; draft = $false; prerelease = $false } | ConvertTo-Json
+            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:REPO/releases" -Headers $headers -Method Post -Body $body -ContentType 'application/json'
+            Write-Host "Created release id=$($rel.id)"
+          } else {
+            Write-Host "Found existing release id=$($rel.id)"
+          }
+
+          # Delete existing asset with same name (if any)
+          if ($rel.assets) {
+            foreach ($a in $rel.assets) {
+              if ($a.name -eq $env:ASSET_NAME) {
+                Write-Host "Deleting existing asset $($a.name) (id=$($a.id))"
+                $delUrl = "https://api.github.com/repos/$env:REPO/releases/assets/$($a.id)"
+                Invoke-RestMethod -Uri $delUrl -Headers $headers -Method Delete
+              }
             }
           }
-        shell: pwsh
 
-      - name: Upload exe to Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/file-organiser.exe
-          asset_name: file-organiser.exe
-          asset_content_type: application/octet-stream
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Upload asset via uploads.github.com
+          $release_id = $rel.id
+          $upload_url = "https://uploads.github.com/repos/$env:REPO/releases/$release_id/assets?name=$env:ASSET_NAME"
+          Write-Host "Uploading asset to $upload_url"
+          if (-Not (Test-Path $env:ASSET_PATH)) { throw "Asset not found: $env:ASSET_PATH" }
+          # Use Invoke-WebRequest to upload binary
+          Invoke-WebRequest -Uri $upload_url -Headers @{ Authorization = "token $env:GITHUB_TOKEN" } -Method Post -InFile $env:ASSET_PATH -ContentType 'application/octet-stream'
+          Write-Host "Upload complete"
+        shell: pwsh
 
       - name: Show dist contents (debug)
         if: ${{ always() }}
