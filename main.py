@@ -229,7 +229,7 @@ def organise_files_worker(source_dir, dest_dir, date_source, log_q, status_q, pr
                 ts = get_file_timestamp(file, date_source, log_q)
                 modified = datetime.fromtimestamp(ts)
                 year = modified.strftime("%Y")
-                month = modified.strftime("%m-%B")
+                month = modified.strftime("%m")
                 target_dir = os.path.join(dest_dir, year, month)
                 os.makedirs(target_dir, exist_ok=True)
                 dest_path = os.path.join(target_dir, os.path.basename(file))
