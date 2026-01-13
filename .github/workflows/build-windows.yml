@@ -13,9 +13,6 @@ jobs:
   build:
     name: Build file-organiser.exe
     runs-on: windows-latest
-    env:
-      # Use runner temporary dir for pip cache to make it cachable
-      PIP_CACHE_DIR: ${{ runner.temp }}\pip-cache
 
     steps:
       - name: Checkout
@@ -30,7 +27,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.PIP_CACHE_DIR }}
+            .pip-cache
             .venv
           key: ${{ runner.os }}-pip-${{ hashFiles('uv.lock') }}
           restore-keys: |
@@ -38,6 +35,10 @@ jobs:
 
       - name: Install uv and setup project environment
         run: |
+          # create a workspace-local pip cache and point pip to it so cache action can store it
+          $pipCache = Join-Path $PWD '.pip-cache'
+          if (-Not (Test-Path $pipCache)) { New-Item -ItemType Directory -Path $pipCache | Out-Null }
+          $env:PIP_CACHE_DIR = $pipCache
           python -m pip install --upgrade pip
           pip install uv
           uv sync
