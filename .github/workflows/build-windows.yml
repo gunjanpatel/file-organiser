@@ -6,6 +6,9 @@ on:
     tags: ['v*']
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build file-organiser.exe
@@ -38,8 +41,55 @@ jobs:
           name: file-organiser-exe
           path: |
             dist/file-organiser.exe
-            dist/file-organiser/file-organiser.exe
           retention-days: 7
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: ${{ github.ref_name }}
+          body: 'Automated build: file-organiser.exe'
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ensure no existing release asset (delete if exists)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          ASSET_NAME: file-organiser.exe
+        run: |
+          Write-Host "Checking for existing release and asset named $env:ASSET_NAME for tag $env:TAG"
+          $headers = @{ Authorization = "token $env:GITHUB_TOKEN"; Accept = 'application/vnd.github+json' }
+          # Get release by tag
+          $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:REPO/releases/tags/$env:TAG" -Headers $headers -Method Get
+          if ($null -eq $rel) { Write-Host 'No release found'; exit 0 }
+          $assets = $rel.assets
+          foreach ($a in $assets) {
+            if ($a.name -eq $env:ASSET_NAME) {
+              Write-Host "Found existing asset id=$($a.id) name=$($a.name). Deleting..."
+              $delUrl = "https://api.github.com/repos/$env:REPO/releases/assets/$($a.id)"
+              Invoke-RestMethod -Uri $delUrl -Headers $headers -Method Delete
+              Write-Host 'Deleted existing asset.'
+            }
+          }
+        shell: pwsh
+
+      - name: Upload exe to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/file-organiser.exe
+          asset_name: file-organiser.exe
+          asset_content_type: application/octet-stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Show dist contents (debug)
         if: ${{ always() }}
