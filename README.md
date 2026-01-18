@@ -1,6 +1,5 @@
 # Usage for Windows
-1. Run `Start_Setup.bat` file. Double click on it.
-2. Go to your desktop and click on shortcut created
+Download latest EXE from https://github.com/gunjanpatel/file-organiser/releases and run in your computer.
 
 # Usage for Linux or Mac
 ```
