@@ -46,7 +46,7 @@ jobs:
 
       - name: Build one-file Windows exe with PyInstaller (via uv)
         run: |
-          uv run pyinstaller --noconsole --onefile --windowed --name file-organiser --clean --noconfirm main.py
+          uv run pyinstaller --noconsole --onefile --windowed --name file-organiser --clean --noconfirm src/main.py
         shell: pwsh
 
       - name: Smoke-test built exe (start, wait, terminate)

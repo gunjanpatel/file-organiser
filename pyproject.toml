@@ -8,7 +8,13 @@ dependencies = [
     "pillow>=12.1.0",
 ]
 
+[project.scripts]
+organise = "main:main"
+
 [dependency-groups]
 dev = [
     "pyinstaller>=6.18.0",
 ]
+
+[tool.uv]
+package = true
