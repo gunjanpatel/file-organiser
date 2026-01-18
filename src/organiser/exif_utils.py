@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Optional
 
-IMAGE_EXTS = {'.jpg', '.jpeg', '.tiff', '.tif', '.png', '.heic', '.webp'}
+IMAGE_EXTS = {".jpg", ".jpeg", ".tiff", ".tif", ".png", ".heic", ".webp"}
+
 
 def get_exif_datetime_original(path: str) -> Optional[datetime]:
     try:
@@ -15,7 +16,7 @@ def get_exif_datetime_original(path: str) -> Optional[datetime]:
             return None
         dt_key = None
         for k, v in ExifTags.TAGS.items():
-            if v == 'DateTimeOriginal':
+            if v == "DateTimeOriginal":
                 dt_key = k
                 break
         if dt_key is None:
@@ -24,7 +25,7 @@ def get_exif_datetime_original(path: str) -> Optional[datetime]:
         if not dt_val:
             return None
         try:
-            return datetime.strptime(dt_val, '%Y:%m:%d %H:%M:%S')
+            return datetime.strptime(dt_val, "%Y:%m:%d %H:%M:%S")
         except Exception:
             return None
     except Exception:

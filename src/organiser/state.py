@@ -4,6 +4,7 @@ import queue
 import threading
 import tkinter as tk
 
+
 @dataclass
 class AppState:
     log_q: Optional[queue.Queue] = None
